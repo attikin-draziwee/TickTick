@@ -13,6 +13,14 @@ pub trait RepositoryUser {
     async fn get_by_email(&self, email: String) -> Option<User>;
 
     async fn get_by_id(&self, id: u32) -> Option<User>;
+
+    async fn update(
+        &self,
+        id: u32,
+        login: Option<String>,
+        email: Option<String>,
+        password: Option<String>,
+    ) -> Result<User, RepositoryUserError>;
 }
 
 #[derive(Debug, Error)]

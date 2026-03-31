@@ -1,4 +1,4 @@
-use sqlx::MySqlPool;
+use sqlx::{Connection, MySqlPool};
 
 use crate::repository::user::{RepositoryUser, RepositoryUserError, User};
 
@@ -9,11 +9,13 @@ impl RepositoryUser for MySqlPool {
         email: String,
         password: String,
     ) -> Result<User, RepositoryUserError> {
-        let mut tx = self.begin().await?;
+        let mut conn = self.acquire().await?;
 
         sqlx::query!("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
-            .execute(self)
+            .execute(&mut *conn)
             .await?;
+
+        let mut tx = conn.begin().await?;
 
         let insert_user = sqlx::query!(
             "INSERT `user` (login, email, password_hash) VALUES (?, ?, ?);",
@@ -63,5 +65,65 @@ impl RepositoryUser for MySqlPool {
             .fetch_one(self)
             .await
             .ok()
+    }
+
+    async fn update(
+        &self,
+        id: u32,
+        login: Option<String>,
+        email: Option<String>,
+        password: Option<String>,
+    ) -> Result<User, RepositoryUserError> {
+        let mut conn = self.acquire().await?;
+
+        sqlx::query!("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE")
+            .execute(&mut *conn)
+            .await?;
+
+        let mut tx = conn.begin().await?;
+
+        let updated_user = sqlx::query_as!(
+            User,
+            r#"UPDATE `user`
+            SET
+                login = COALESCE(?, login),
+                email = COALESCE(?, email),
+                password_hash = COALESCE(?, password_hash)
+            WHERE
+                id = ?
+           ;"#,
+            login,
+            email,
+            password,
+            id
+        )
+        .execute(&mut *tx)
+        .await
+        .map_err(|sql_err| match sql_err {
+            sqlx::Error::Database(db_err) if db_err.is_unique_violation() => {
+                RepositoryUserError::EmailAlreadyExists
+            }
+            _ => RepositoryUserError::SQLxError(sql_err),
+        });
+
+        if let Err(e) = updated_user {
+            tx.rollback().await.ok();
+            return Err(e);
+        }
+
+        let user = sqlx::query_as!(User, "SELECT * FROM `user` WHERE id = ?", id)
+            .fetch_one(&mut *tx)
+            .await;
+
+        match user {
+            Ok(u) => {
+                tx.commit().await.ok();
+                Ok(u)
+            }
+            Err(e) => {
+                tx.rollback().await.ok();
+                Err(RepositoryUserError::SQLxError(e))
+            }
+        }
     }
 }

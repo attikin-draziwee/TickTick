@@ -4,6 +4,7 @@ use axum::{
     Json,
     extract::{Path, Query, State},
     http::StatusCode,
+    response::IntoResponse,
 };
 use regex::Regex;
 use serde::Deserialize;
@@ -72,6 +73,63 @@ pub async fn post(
         .await
     {
         Ok(user) => Ok((StatusCode::CREATED, Json(user))),
+        Err(e) => Err((
+            StatusCode::BAD_REQUEST,
+            Json(json!({
+                "status": "error",
+                "message": e.to_string(),
+            })),
+        )),
+    }
+}
+
+#[derive(Debug, Validate, Deserialize)]
+pub struct UserUpdate {
+    #[validate(regex(path = *LOGIN_VALIDATION, message = "Login must be greater then 5 and less 32 symbols. It's support latian letters, digits and symbols '-' and '_'."))]
+    login: Option<String>,
+    #[validate(email)]
+    email: Option<String>,
+    password: Option<String>,
+}
+
+pub async fn put(
+    State(state): State<AppState>,
+    Path(id): Path<u32>,
+    Json(user_update): Json<UserUpdate>,
+) -> impl IntoResponse {
+    if user_update.email.is_none() && user_update.login.is_none() && user_update.password.is_none()
+    {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(json!({
+                "status": "error",
+                "message": "nothing to do"
+            })),
+        ));
+    };
+
+    if let Err(e) = user_update.validate() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(json!({
+                "status": "error",
+                "message": e.to_string(),
+            })),
+        ));
+    }
+
+    match state
+        .user_service
+        .update(
+            id,
+            user_update.login,
+            user_update.email,
+            user_update.password,
+            state.db,
+        )
+        .await
+    {
+        Ok(user) => Ok((StatusCode::OK, Json(user))),
         Err(e) => Err((
             StatusCode::BAD_REQUEST,
             Json(json!({

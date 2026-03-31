@@ -55,4 +55,25 @@ impl UserService {
             None => Err(UserError::UserNotFound),
         }
     }
+
+    pub async fn update(
+        &self,
+        id: u32,
+        login: Option<String>,
+        email: Option<String>,
+        password: Option<String>,
+        repository: impl RepositoryUser,
+    ) -> Result<User, UserError> {
+        let password: Option<String> = if let Some(pass) = password {
+            use sha256::digest;
+            Some(digest(pass))
+        } else {
+            None
+        };
+
+        match repository.update(id, login, email, password).await {
+            Ok(u) => Ok(u),
+            Err(e) => Err(UserError::RepositoryError(e)),
+        }
+    }
 }
