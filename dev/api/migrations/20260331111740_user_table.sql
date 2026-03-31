@@ -1,0 +1,9 @@
+-- Add migration script here
+CREATE TABLE IF NOT EXISTS `user` (
+	id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+	login VARCHAR(120),
+	email VARCHAR(320) NOT NULL UNIQUE,
+	password_hash VARCHAR(256) NOT NULL,
+
+	PRIMARY KEY (id)
+);

@@ -1,6 +1,6 @@
 services:
   app:
-    container_name: todo_axum
+    container_name: todo
     build: ./api/.
     ports:
       - 8080:8080
