@@ -1,0 +1,32 @@
+[package]
+name = "todo"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+# Backend
+axum = "0.8.8"
+tokio = { version = "1.50.0", features = ["full"] }
+
+# Structure → JSON ← Structure
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.149"
+
+# Database
+sqlx = { version = "0.8.6", features = [
+  "macros",
+  "postgres",
+  "runtime-tokio-native-tls",
+  "tls-rustls"
+] }
+
+# Implements Errors
+thiserror = "2.0.18"
+
+dotenv = "0.15.0"
+
+[dev-dependencies]
+
+[profile.release]
+opt-level = 3
+lto = true
