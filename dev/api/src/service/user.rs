@@ -9,6 +9,8 @@ pub struct UserService {}
 pub enum UserError {
     #[error(transparent)]
     RepositoryError(#[from] RepositoryUserError),
+    #[error("user not found")]
+    UserNotFound,
 }
 
 impl UserService {
@@ -16,7 +18,7 @@ impl UserService {
         Self {}
     }
 
-    pub async fn create_user(
+    pub async fn create(
         &self,
         login: Option<String>,
         email: String,
@@ -27,8 +29,30 @@ impl UserService {
 
         let crypt_password: String = digest(password);
         repository
-            .create_user(login, email, crypt_password)
+            .create(login, email, crypt_password)
             .await
             .map_err(|e| UserError::RepositoryError(e))
+    }
+
+    pub async fn get_by_email(
+        &self,
+        email: String,
+        repository: impl RepositoryUser,
+    ) -> Result<User, UserError> {
+        match repository.get_by_email(email.clone()).await {
+            Some(u) => Ok(u),
+            None => Err(UserError::UserNotFound),
+        }
+    }
+
+    pub async fn get_by_id(
+        &self,
+        id: u32,
+        repository: impl RepositoryUser,
+    ) -> Result<User, UserError> {
+        match repository.get_by_id(id).await {
+            Some(u) => Ok(u),
+            None => Err(UserError::UserNotFound),
+        }
     }
 }

@@ -3,7 +3,7 @@ use sqlx::MySqlPool;
 use crate::repository::user::{RepositoryUser, RepositoryUserError, User};
 
 impl RepositoryUser for MySqlPool {
-    async fn create_user(
+    async fn create(
         &self,
         login: Option<String>,
         email: String,
@@ -49,5 +49,19 @@ impl RepositoryUser for MySqlPool {
                 Err(RepositoryUserError::InternalError)
             }
         };
+    }
+
+    async fn get_by_email(&self, email: String) -> Option<User> {
+        sqlx::query_as!(User, "SELECT * FROM `user` WHERE email = ?", email)
+            .fetch_one(self)
+            .await
+            .ok()
+    }
+
+    async fn get_by_id(&self, id: u32) -> Option<User> {
+        sqlx::query_as!(User, "SELECT * FROM `user` WHERE id = ?", id)
+            .fetch_one(self)
+            .await
+            .ok()
     }
 }
