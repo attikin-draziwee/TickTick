@@ -1,8 +1,8 @@
 use std::time::Duration;
 
-use sqlx::{Pool, mysql::MySqlPoolOptions};
+use sqlx::{MySqlPool, mysql::MySqlPoolOptions};
 
-use crate::settings::Settings;
+use crate::{service::user::UserService, settings::Settings};
 
 mod settings;
 
@@ -13,14 +13,15 @@ mod service;
 
 #[derive(Clone)]
 pub struct AppState {
-    db: Pool<sqlx::MySql>,
+    db: MySqlPool,
+    user_service: UserService,
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let settings: Settings = Settings::new();
 
-    let db_connect: Pool<sqlx::MySql> = MySqlPoolOptions::new()
+    let db_connect = MySqlPoolOptions::new()
         .min_connections(5) // Минимум 5 подключений (прогрев)
         .max_connections(20) // Максимум 20 подключений
         .acquire_timeout(Duration::from_secs(10)) // Таймаут получения подключения
@@ -38,7 +39,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await
         .expect("Cannot use this port");
 
-    let app_state: AppState = AppState { db: db_connect };
+    let app_state: AppState = AppState {
+        db: db_connect,
+        user_service: UserService::new(),
+    };
     axum::serve(listener, router::main_router(app_state)).await?;
 
     Ok(())
