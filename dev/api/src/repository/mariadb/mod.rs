@@ -1,6 +1,6 @@
 use sqlx::{Connection, MySqlPool};
 
-use crate::repository::user::{RepositoryUser, RepositoryUserError, User};
+use crate::repository::user::{RepositoryUser, RepositoryUserError, User, UserRow};
 
 impl RepositoryUser for MySqlPool {
     async fn create(
@@ -37,14 +37,14 @@ impl RepositoryUser for MySqlPool {
             return Err(e);
         }
 
-        let user = sqlx::query_as!(User, "SELECT * FROM `user` WHERE email = ?", email)
+        let user = sqlx::query_as!(UserRow, "SELECT * FROM `user` WHERE email = ?", email)
             .fetch_one(&mut *tx)
             .await;
 
         return match user {
             Ok(user) => {
                 tx.commit().await?;
-                Ok(user)
+                Ok(User::from(user))
             }
             Err(_) => {
                 tx.rollback().await.ok();
@@ -54,16 +54,18 @@ impl RepositoryUser for MySqlPool {
     }
 
     async fn get_by_email(&self, email: String) -> Option<User> {
-        sqlx::query_as!(User, "SELECT * FROM `user` WHERE email = ?", email)
+        sqlx::query_as!(UserRow, "SELECT * FROM `user` WHERE email = ?", email)
             .fetch_one(self)
             .await
+            .map(|user_row| User::from(user_row))
             .ok()
     }
 
     async fn get_by_id(&self, id: u32) -> Option<User> {
-        sqlx::query_as!(User, "SELECT * FROM `user` WHERE id = ?", id)
+        sqlx::query_as!(UserRow, "SELECT * FROM `user` WHERE id = ?", id)
             .fetch_one(self)
             .await
+            .map(User::from)
             .ok()
     }
 
@@ -111,14 +113,14 @@ impl RepositoryUser for MySqlPool {
             return Err(e);
         }
 
-        let user = sqlx::query_as!(User, "SELECT * FROM `user` WHERE id = ?", id)
+        let user = sqlx::query_as!(UserRow, "SELECT * FROM `user` WHERE id = ?", id)
             .fetch_one(&mut *tx)
             .await;
 
         match user {
             Ok(u) => {
                 tx.commit().await.ok();
-                Ok(u)
+                Ok(User::from(u))
             }
             Err(e) => {
                 tx.rollback().await.ok();

@@ -1,4 +1,4 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
 use thiserror::Error;
 
@@ -35,9 +35,34 @@ pub enum RepositoryUserError {
 
 #[allow(unused)]
 #[derive(Debug, Serialize, FromRow)]
+pub struct UserRow {
+    pub id: u64,
+    pub login: Option<String>,
+    pub email: String,
+    pub password_hash: String,
+    pub is_deleted: i8,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct User {
     pub id: u64,
     pub login: Option<String>,
     pub email: String,
     pub password_hash: String,
+    pub is_deleted: bool,
+}
+
+impl From<UserRow> for User {
+    fn from(value: UserRow) -> Self {
+        Self {
+            id: value.id,
+            login: value.login,
+            email: value.email,
+            password_hash: value.password_hash,
+            is_deleted: match value.is_deleted {
+                0 => false,
+                _ => true,
+            },
+        }
+    }
 }
