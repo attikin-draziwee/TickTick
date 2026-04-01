@@ -10,17 +10,21 @@ pub trait RepositoryUser {
         password: String,
     ) -> Result<User, RepositoryUserError>;
 
+    async fn get(&self, strict: bool) -> Result<Vec<User>, RepositoryUserError>;
+
     async fn get_by_email(&self, email: String) -> Option<User>;
 
-    async fn get_by_id(&self, id: u32) -> Option<User>;
+    async fn get_by_id(&self, id: u64) -> Option<User>;
 
     async fn update(
         &self,
-        id: u32,
+        id: u64,
         login: Option<String>,
         email: Option<String>,
         password: Option<String>,
     ) -> Result<User, RepositoryUserError>;
+
+    async fn delete(&self, id: u64) -> Result<(), RepositoryUserError>;
 }
 
 #[derive(Debug, Error)]
@@ -31,6 +35,8 @@ pub enum RepositoryUserError {
     EmailAlreadyExists,
     #[error("internal error")]
     InternalError,
+    #[error("user not found")]
+    UserNotFound,
 }
 
 #[allow(unused)]

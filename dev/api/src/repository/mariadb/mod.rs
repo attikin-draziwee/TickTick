@@ -53,25 +53,61 @@ impl RepositoryUser for MySqlPool {
         };
     }
 
-    async fn get_by_email(&self, email: String) -> Option<User> {
-        sqlx::query_as!(UserRow, "SELECT * FROM `user` WHERE email = ?", email)
-            .fetch_one(self)
-            .await
-            .map(|user_row| User::from(user_row))
-            .ok()
+    async fn get(&self, strict: bool) -> Result<Vec<User>, RepositoryUserError> {
+        let rows_result = match strict {
+            false => {
+                sqlx::query_as!(UserRow, "SELECT * FROM `user`;")
+                    .fetch_all(self)
+                    .await
+            }
+            true => {
+                sqlx::query_as!(UserRow, "SELECT * FROM `user` WHERE is_deleted = FALSE;")
+                    .fetch_all(self)
+                    .await
+            }
+        };
+
+        match rows_result {
+            Err(e) => Err(RepositoryUserError::SQLxError(e)),
+            Ok(rows) => Ok(rows.into_iter().map(|u| User::from(u)).collect()),
+        }
     }
 
-    async fn get_by_id(&self, id: u32) -> Option<User> {
-        sqlx::query_as!(UserRow, "SELECT * FROM `user` WHERE id = ?", id)
-            .fetch_one(self)
-            .await
-            .map(User::from)
-            .ok()
+    async fn get_by_email(&self, email: String) -> Option<User> {
+        sqlx::query_as!(
+            UserRow,
+            "SELECT * FROM `user` WHERE email = ? AND is_deleted = FALSE",
+            email
+        )
+        .fetch_one(self)
+        .await
+        .map(|user_row| User::from(user_row))
+        .map_err(|e| match e {
+            sqlx::Error::RowNotFound => RepositoryUserError::UserNotFound,
+            _ => RepositoryUserError::SQLxError(e),
+        })
+        .ok()
+    }
+
+    async fn get_by_id(&self, id: u64) -> Option<User> {
+        sqlx::query_as!(
+            UserRow,
+            "SELECT * FROM `user` WHERE id = ? AND is_deleted = FALSE",
+            id
+        )
+        .fetch_one(self)
+        .await
+        .map(User::from)
+        .map_err(|e| match e {
+            sqlx::Error::RowNotFound => RepositoryUserError::UserNotFound,
+            _ => RepositoryUserError::SQLxError(e),
+        })
+        .ok()
     }
 
     async fn update(
         &self,
-        id: u32,
+        id: u64,
         login: Option<String>,
         email: Option<String>,
         password: Option<String>,
@@ -93,6 +129,8 @@ impl RepositoryUser for MySqlPool {
                 password_hash = COALESCE(?, password_hash)
             WHERE
                 id = ?
+                AND
+                is_deleted = FALSE
            ;"#,
             login,
             email,
@@ -105,12 +143,21 @@ impl RepositoryUser for MySqlPool {
             sqlx::Error::Database(db_err) if db_err.is_unique_violation() => {
                 RepositoryUserError::EmailAlreadyExists
             }
+            sqlx::Error::RowNotFound => RepositoryUserError::UserNotFound,
             _ => RepositoryUserError::SQLxError(sql_err),
         });
 
-        if let Err(e) = updated_user {
-            tx.rollback().await.ok();
-            return Err(e);
+        match updated_user {
+            Ok(rows) => {
+                if rows.rows_affected() == 0 {
+                    tx.rollback().await.ok();
+                    return Err(RepositoryUserError::UserNotFound);
+                }
+            }
+            Err(e) => {
+                tx.rollback().await.ok();
+                return Err(e);
+            }
         }
 
         let user = sqlx::query_as!(UserRow, "SELECT * FROM `user` WHERE id = ?", id)
@@ -126,6 +173,25 @@ impl RepositoryUser for MySqlPool {
                 tx.rollback().await.ok();
                 Err(RepositoryUserError::SQLxError(e))
             }
+        }
+    }
+
+    async fn delete(&self, id: u64) -> Result<(), RepositoryUserError> {
+        let result = sqlx::query!(
+            "UPDATE `user` SET is_deleted = 1 WHERE id = ? AND is_deleted = FALSE",
+            id
+        )
+        .execute(self)
+        .await
+        .map_err(|e| match e {
+            sqlx::Error::RowNotFound => RepositoryUserError::UserNotFound,
+            _ => RepositoryUserError::SQLxError(e),
+        })?;
+
+        if result.rows_affected() == 0 {
+            Err(RepositoryUserError::UserNotFound)
+        } else {
+            Ok(())
         }
     }
 }
