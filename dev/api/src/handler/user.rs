@@ -24,13 +24,16 @@ pub struct UserQueryEmail {
     pub email: Option<String>,
 }
 
+#[tracing::instrument(skip(state), fields(query = ?query.email))]
 pub async fn get(
     State(state): State<AppState>,
     Query(query): Query<UserQueryEmail>,
 ) -> Result<Json<GetUsers>, (StatusCode, Json<String>)> {
     let email_validator = query.validate();
     if let Some(email) = query.email {
+        tracing::info!("starting search by email.");
         if let Err(e) = email_validator {
+            tracing::warn!("email validation error. skip");
             return Err((StatusCode::BAD_REQUEST, Json(e.to_string())));
         }
 
@@ -38,27 +41,38 @@ pub async fn get(
             .user_service
             .get_by_email(email, state.db)
             .await
-            .map(|u| Ok(Json(GetUsers::Single(u))))
+            .map(|u| {
+                tracing::info!("return user: {:?}.", &u);
+                Ok(Json(GetUsers::Single(u)))
+            })
             .map_err(|e| (StatusCode::NOT_FOUND, Json(e.to_string())))?
     } else {
         state
             .user_service
             .get(false, state.db)
             .await
-            .map(|u| Ok(Json(GetUsers::Multiple(u))))
+            .map(|u| {
+                tracing::info!("return all users.");
+                Ok(Json(GetUsers::Multiple(u)))
+            })
             .map_err(|e| (StatusCode::NOT_FOUND, Json(e.to_string())))?
     }
 }
 
+#[tracing::instrument(skip(state), fields(id = %id))]
 pub async fn get_by_id(
     State(state): State<AppState>,
     Path(id): Path<u64>,
 ) -> Result<Json<User>, StatusCode> {
+    tracing::info!("starting search user by id.");
     state
         .user_service
         .get_by_id(id, state.db)
         .await
-        .map(|u| Ok(Json(u)))
+        .map(|u| {
+            tracing::info!("found user {:?}", &u);
+            Ok(Json(u))
+        })
         .map_err(|_| StatusCode::NOT_FOUND)?
 }
 
@@ -74,11 +88,14 @@ pub struct UserCreate {
     password: String,
 }
 
+#[tracing::instrument(skip(state, user), fields(login = ?user.login, email = %user.email))]
 pub async fn post(
     State(state): State<AppState>,
     Json(user): Json<UserCreate>,
 ) -> Result<Json<User>, (StatusCode, Json<String>)> {
+    tracing::info!("start creating user.");
     if let Err(e) = user.validate() {
+        tracing::warn!("it's not valid email, skip.");
         return Err((StatusCode::BAD_REQUEST, Json(e.to_string())));
     }
 
@@ -99,6 +116,7 @@ pub struct UserUpdate {
     password: Option<String>,
 }
 
+#[tracing::instrument(skip(state), fields(id = %id, user_update = ?user_update))]
 pub async fn put(
     State(state): State<AppState>,
     Path(id): Path<u64>,
@@ -106,10 +124,12 @@ pub async fn put(
 ) -> Result<Json<User>, (StatusCode, Json<String>)> {
     if user_update.email.is_none() && user_update.login.is_none() && user_update.password.is_none()
     {
+        tracing::warn!("empty request. skip");
         return Err((StatusCode::BAD_REQUEST, Json("nothing to do".to_string())));
     };
 
     if let Err(e) = user_update.validate() {
+        tracing::warn!("email not valid. skip");
         return Err((StatusCode::BAD_REQUEST, Json(e.to_string())));
     }
 
@@ -123,10 +143,14 @@ pub async fn put(
             state.db,
         )
         .await
-        .map(|u| Ok(Json(u)))
+        .map(|u| {
+            tracing::info!("updated user");
+            Ok(Json(u))
+        })
         .map_err(|e| (StatusCode::BAD_REQUEST, Json(e.to_string())))?
 }
 
+#[tracing::instrument(skip(state), fields(id = %id))]
 pub async fn delete_by_id(
     State(state): State<AppState>,
     Path(id): Path<u64>,
@@ -135,6 +159,9 @@ pub async fn delete_by_id(
         .user_service
         .delete(Some(id), None, state.db)
         .await
-        .map(|_| StatusCode::OK)
+        .map(|_| {
+            tracing::info!("user {} successfully deleted.", id);
+            StatusCode::OK
+        })
         .map_err(|e| (StatusCode::BAD_REQUEST, Json(e.to_string())))
 }

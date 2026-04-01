@@ -39,6 +39,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await
         .expect("Cannot use this port");
 
+    tracing::info!("Starting server on: {}", listener.local_addr()?);
+
     let app_state: AppState = AppState {
         db: db_connect,
         user_service: UserService::new(),
