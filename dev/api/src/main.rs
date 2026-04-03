@@ -1,6 +1,6 @@
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
-use sqlx::{MySqlPool, mysql::MySqlPoolOptions};
+use sqlx::mysql::MySqlPoolOptions;
 
 use crate::{service::user::UserService, settings::Settings};
 
@@ -13,7 +13,6 @@ mod service;
 
 #[derive(Clone)]
 pub struct AppState {
-    db: MySqlPool,
     user_service: UserService,
 }
 
@@ -42,8 +41,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!("Starting server on: {}", listener.local_addr()?);
 
     let app_state: AppState = AppState {
-        db: db_connect,
-        user_service: UserService::new(),
+        user_service: UserService::new(Arc::new(db_connect.clone())),
     };
     axum::serve(listener, router::main_router(app_state)).await?;
 

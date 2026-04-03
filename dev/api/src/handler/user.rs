@@ -39,7 +39,7 @@ pub async fn get(
 
         state
             .user_service
-            .get_by_email(email, state.db)
+            .get_by_email(email)
             .await
             .map(|u| {
                 tracing::info!("return user: {:?}.", &u);
@@ -49,7 +49,7 @@ pub async fn get(
     } else {
         state
             .user_service
-            .get(false, state.db)
+            .get(false)
             .await
             .map(|u| {
                 tracing::info!("return all users.");
@@ -67,7 +67,7 @@ pub async fn get_by_id(
     tracing::info!("starting search user by id.");
     state
         .user_service
-        .get_by_id(id, state.db)
+        .get_by_id(id)
         .await
         .map(|u| {
             tracing::info!("found user {:?}", &u);
@@ -101,7 +101,7 @@ pub async fn post(
 
     state
         .user_service
-        .create(user.login, user.email, user.password, state.db)
+        .create(user.login, user.email, user.password)
         .await
         .map(|u| Ok(Json(u)))
         .map_err(|e| (StatusCode::BAD_REQUEST, Json(e.to_string())))?
@@ -140,7 +140,6 @@ pub async fn put(
             user_update.login,
             user_update.email,
             user_update.password,
-            state.db,
         )
         .await
         .map(|u| {
@@ -157,7 +156,7 @@ pub async fn delete_by_id(
 ) -> Result<StatusCode, (StatusCode, Json<String>)> {
     state
         .user_service
-        .delete(Some(id), None, state.db)
+        .delete(Some(id), None)
         .await
         .map(|_| {
             tracing::info!("user {} successfully deleted.", id);

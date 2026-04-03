@@ -1,7 +1,9 @@
+use async_trait::async_trait;
 use sqlx::{Connection, MySqlPool};
 
 use crate::repository::user::{RepositoryUser, RepositoryUserError, User, UserRow};
 
+#[async_trait]
 impl RepositoryUser for MySqlPool {
     async fn create(
         &self,
@@ -69,7 +71,7 @@ impl RepositoryUser for MySqlPool {
 
         match rows_result {
             Err(e) => Err(RepositoryUserError::SQLxError(e)),
-            Ok(rows) => Ok(rows.into_iter().map(|u| User::from(u)).collect()),
+            Ok(rows) => Ok(rows.into_iter().map(User::from).collect()),
         }
     }
 
@@ -81,7 +83,7 @@ impl RepositoryUser for MySqlPool {
         )
         .fetch_one(self)
         .await
-        .map(|user_row| User::from(user_row))
+        .map(User::from)
         .map_err(|e| match e {
             sqlx::Error::RowNotFound => RepositoryUserError::UserNotFound,
             _ => RepositoryUserError::SQLxError(e),

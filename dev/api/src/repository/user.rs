@@ -1,8 +1,10 @@
+use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
 use thiserror::Error;
 
-pub trait RepositoryUser {
+#[async_trait]
+pub trait RepositoryUser: Send + Sync {
     async fn create(
         &self,
         login: Option<String>,
@@ -65,10 +67,7 @@ impl From<UserRow> for User {
             login: value.login,
             email: value.email,
             password_hash: value.password_hash,
-            is_deleted: match value.is_deleted {
-                0 => false,
-                _ => true,
-            },
+            is_deleted: !matches!(value.is_deleted, 0),
         }
     }
 }

@@ -1,9 +1,16 @@
+use clap::Parser;
 use tracing_error::ErrorLayer;
 use tracing_subscriber::{EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
 
 pub struct Settings {
     pub db_url: String,
     pub port: String,
+}
+
+#[derive(Debug, Parser)]
+struct Args {
+    #[arg(short, long, default_value_t = 8080)]
+    port: u16,
 }
 
 impl Settings {
@@ -30,7 +37,7 @@ impl Settings {
 
         Self {
             db_url: std::env::var("DATABASE_URL").expect(".env DATABASE_URL not found"),
-            port: std::env::var("PORT").unwrap_or("8080".to_string()),
+            port: Args::parse().port.to_string(),
         }
     }
 }

@@ -5,15 +5,16 @@ edition = "2024"
 
 [dependencies]
 # Backend
-axum = "0.8.8"
-tokio = { version = "1.50.0", features = ["full"] }
+async-trait = "0.1"
+axum = "0.8"
+tokio = { version = "1.50", features = ["full"] }
 
 # Structure → JSON ← Structure
-serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.149"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 
 # Database
-sqlx = { version = "0.8.6", features = [
+sqlx = { version = "0.8", features = [
   "macros",
   "mysql",
   "runtime-tokio-native-tls",
@@ -21,19 +22,25 @@ sqlx = { version = "0.8.6", features = [
 ] }
 
 # Implements Errors
-thiserror = "2.0.18"
+thiserror = "2.0"
 
-dotenv = "0.15.0"
-validator = { version = "0.20.0", features = ["derive"] }
-sha256 = "1.6.0"
-regex = "1.12.3"
+# Environment configuration
+clap = { version = "4.6.0", features = ["derive"] }
+dotenv = "0.15"
+
+# Validation
+regex = "1.12"
+tower = "0.5"
+validator = { version = "0.20", features = ["derive"] }
+
+# Hash
+sha256 = "1.6"
 
 # logging
-tracing = "0.1.44"
-tracing-subscriber = {version="0.3.23", features=["env-filter"]}
-tracing-error = "0.2.1"
-tower = "0.5.3"
-uuid = {version="1.23.0", features=["v4"]}
+tracing = "0.1"
+tracing-error = "0.2"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+uuid = { version = "1.23", features = ["v4"] }
 
 [dev-dependencies]
 
