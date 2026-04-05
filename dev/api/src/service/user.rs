@@ -25,15 +25,15 @@ impl UserService {
     #[tracing::instrument(skip(self, password), fields(login = ?login, email = %email))]
     pub async fn create(
         &self,
-        login: Option<String>,
-        email: String,
-        password: String,
+        login: Option<&str>,
+        email: &str,
+        password: &str,
     ) -> Result<User, UserError> {
         use sha256::digest;
 
         let crypt_password: String = digest(password);
         self.user_repo
-            .create(login, email, crypt_password)
+            .create(login, email, &crypt_password)
             .await
             .map_err(|e| {
                 tracing::error!("{}", &e);
@@ -45,8 +45,8 @@ impl UserService {
     }
 
     #[tracing::instrument(skip(self), fields(email = %email))]
-    pub async fn get_by_email(&self, email: String) -> Result<User, UserError> {
-        match self.user_repo.get_by_email(email.clone()).await {
+    pub async fn get_by_email(&self, email: &str) -> Result<User, UserError> {
+        match self.user_repo.get_by_email(email).await {
             Some(u) => Ok(u),
             None => {
                 tracing::error!("user not found.");
@@ -70,9 +70,9 @@ impl UserService {
     pub async fn update(
         &self,
         id: u64,
-        login: Option<String>,
-        email: Option<String>,
-        password: Option<String>,
+        login: Option<&str>,
+        email: Option<&str>,
+        password: Option<&str>,
     ) -> Result<User, UserError> {
         tracing::info!("starting update user {}", id);
         let password: Option<String> = if let Some(pass) = password {
@@ -82,7 +82,11 @@ impl UserService {
             None
         };
 
-        match self.user_repo.update(id, login, email, password).await {
+        match self
+            .user_repo
+            .update(id, login, email, password.as_deref())
+            .await
+        {
             Ok(u) => Ok(u),
             Err(e) => {
                 tracing::error!("rollback update {:?}", &e);
@@ -92,7 +96,7 @@ impl UserService {
     }
 
     #[tracing::instrument(skip(self), fields(id = ?id, email = ?email))]
-    pub async fn delete(&self, id: Option<u64>, email: Option<String>) -> Result<(), UserError> {
+    pub async fn delete(&self, id: Option<u64>, email: Option<&str>) -> Result<(), UserError> {
         tracing::info!("starting deleting user");
 
         if id.is_none() && email.is_none() {

@@ -7,23 +7,23 @@ use thiserror::Error;
 pub trait RepositoryUser: Send + Sync {
     async fn create(
         &self,
-        login: Option<String>,
-        email: String,
-        password: String,
+        login: Option<&str>,
+        email: &str,
+        password: &str,
     ) -> Result<User, RepositoryUserError>;
 
     async fn get(&self, strict: bool) -> Result<Vec<User>, RepositoryUserError>;
 
-    async fn get_by_email(&self, email: String) -> Option<User>;
+    async fn get_by_email(&self, email: &str) -> Option<User>;
 
     async fn get_by_id(&self, id: u64) -> Option<User>;
 
     async fn update(
         &self,
         id: u64,
-        login: Option<String>,
-        email: Option<String>,
-        password: Option<String>,
+        login: Option<&str>,
+        email: Option<&str>,
+        password: Option<&str>,
     ) -> Result<User, RepositoryUserError>;
 
     async fn delete(&self, id: u64) -> Result<(), RepositoryUserError>;

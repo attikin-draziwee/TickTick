@@ -39,7 +39,7 @@ pub async fn get(
 
         state
             .user_service
-            .get_by_email(email)
+            .get_by_email(&email)
             .await
             .map(|u| {
                 tracing::info!("return user: {:?}.", &u);
@@ -101,7 +101,7 @@ pub async fn post(
 
     state
         .user_service
-        .create(user.login, user.email, user.password)
+        .create(user.login.as_deref(), &user.email, &user.password)
         .await
         .map(|u| Ok(Json(u)))
         .map_err(|e| (StatusCode::BAD_REQUEST, Json(e.to_string())))?
@@ -137,9 +137,9 @@ pub async fn put(
         .user_service
         .update(
             id,
-            user_update.login,
-            user_update.email,
-            user_update.password,
+            user_update.login.as_deref(),
+            user_update.email.as_deref(),
+            user_update.password.as_deref(),
         )
         .await
         .map(|u| {

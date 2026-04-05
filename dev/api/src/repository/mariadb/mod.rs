@@ -7,13 +7,13 @@ use crate::repository::user::{RepositoryUser, RepositoryUserError, User, UserRow
 impl RepositoryUser for MySqlPool {
     async fn create(
         &self,
-        login: Option<String>,
-        email: String,
-        password: String,
+        login: Option<&str>,
+        email: &str,
+        password: &str,
     ) -> Result<User, RepositoryUserError> {
         let mut conn = self.acquire().await?;
 
-        sqlx::query!("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
+        sqlx::query!("SET TRANSACTION ISOLATION LEVEL READ COMMITTED")
             .execute(&mut *conn)
             .await?;
 
@@ -22,8 +22,8 @@ impl RepositoryUser for MySqlPool {
         let insert_user = sqlx::query!(
             "INSERT `user` (login, email, password_hash) VALUES (?, ?, ?);",
             login,
-            email.to_string(),
-            password.to_string()
+            email,
+            password
         )
         .execute(&mut *tx)
         .await
@@ -75,7 +75,7 @@ impl RepositoryUser for MySqlPool {
         }
     }
 
-    async fn get_by_email(&self, email: String) -> Option<User> {
+    async fn get_by_email(&self, email: &str) -> Option<User> {
         sqlx::query_as!(
             UserRow,
             "SELECT * FROM `user` WHERE email = ? AND is_deleted = FALSE",
@@ -110,9 +110,9 @@ impl RepositoryUser for MySqlPool {
     async fn update(
         &self,
         id: u64,
-        login: Option<String>,
-        email: Option<String>,
-        password: Option<String>,
+        login: Option<&str>,
+        email: Option<&str>,
+        password: Option<&str>,
     ) -> Result<User, RepositoryUserError> {
         let mut conn = self.acquire().await?;
 
